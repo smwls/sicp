@@ -1796,4 +1796,18 @@ DOIN A BOOOORK
 (intersection-set '(1 2 3 4 5) '(3 4 5 6 7))
 
 (define (adjoin-set x set)
-  (if (null? set) ))
+  (cond ((null? set) (list x))
+        ((= x (car set)) set)
+        ((< x (car set)) (cons x set))
+        (else (cons (car set) (adjoin-set x (cdr set))))))
+
+(adjoin-set 1 '(1 3 4 6))
+
+(define (union-set set1 set2)
+  (cond ((null? set1) set2)
+        ((null? set2) set1)
+        ((= (car set1) (car set2)) (cons (car set1) (union-set (cdr set1) (cdr set2))))
+        ((< (car set1) (car set2)) (cons (car set1) (union-set (cdr set1) set2)))
+        ((> (car set1) (car set2)) (cons (car set2) (union-set set1 (cdr set2))))))
+
+(union-set '(1 3 6 8 9 13 16) '(4 6 9 13 17 20))
