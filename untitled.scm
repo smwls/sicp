@@ -1783,16 +1783,16 @@ DOIN A BOOOORK
         ((< x (car set)) false)
         (else (element-of-set? x (cdr set)))))
 
-(define (intersection-set set1 set2)
+(define (intersection-set-list set1 set2)
   (if (or (null? set1) (null? set2))
       '()
       (let ((x1 (car set1)) (x2 (car set2)))
         (cond ((= x1 x2)
-               (cons x1 (intersection-set (cdr set1) (cdr set2))))
+               (cons x1 (intersection-set-list (cdr set1) (cdr set2))))
               ((< x1 x2)
-               (intersection-set (cdr set1) set2))
+               (intersection-set-list (cdr set1) set2))
               ((> x1 x2)
-               (intersection-set set1 (cdr set2)))))))
+               (intersection-set-list set1 (cdr set2)))))))
 (intersection-set '(1 2 3 4 5) '(3 4 5 6 7))
 
 (define (adjoin-set x set)
@@ -1845,7 +1845,15 @@ DOIN A BOOOORK
         ((> x (entry set))
          (make-tree (entry set) (left-branch set)
                     (adjoin-set x (right-branch set))))))
-
+(define (adjoin-tree x set)
+  (cond ((null? set) (make-tree x '() '()))
+        ((<= x (entry set))
+         (make-tree (entry set)
+                    (adjoin-tree x (left-branch set))
+                    (right-branch set)))
+        ((> x (entry set))
+         (make-tree (entry set) (left-branch set)
+                    (adjoin-tree x (right-branch set))))))
 (adjoin-set 5 '())
 
 (define (tree->list-1 tree)
@@ -1867,7 +1875,7 @@ DOIN A BOOOORK
                              result-list)))))
   (copy-to-list tree '()))
 
-(tree->list-2 test-tree)
+(tree->list-2 '())
 
 (define (leaf x) (make-tree x '() '()))
 (define t1 (make-tree 7 (make-tree 3 (leaf 1) (leaf 5)) (make-tree 9 '() (leaf 11))))
@@ -1895,9 +1903,189 @@ DOIN A BOOOORK
               (let ((right-tree (car right-result))
                     (remaining-elts
                      (cdr right-result)))
+
                 (cons (make-tree this-entry
                                  left-tree
                                  right-tree)
                       remaining-elts))))))))
 
 (list->tree '(1 3 5 7 9 11))
+;base case is trivial.
+; recursive case: first, make a partial tree of length approx half of what you want. you then have (recursively) your left subtree, plus the leftover elements. take the car of your leftover elements: this will be the root of your tree. finally, make a partial tree, recursively, out of the remaining elements, big enough so that your tree will overall use n elements. the result will be your right subtree plus the remaining elements overall.
+
+; '(1 3 5 7 9 11) -> left subtree is made from (1 3), remaining is (5 7 9 11), so root is 5
+; (1 3) -> left subtree is made from (), remaining is (1 3), so root is 1, right tree is (tree 3 '() '())
+; so our first left subtree is (tree 1 '() (tree 3 '() '()))
+; right subtree is made from (7 9 11): left is from (7), right is from (9 11), so root is 9
+; so we have (tree 9 (tree 7 '() '()) (tree 11 '() '()))
+; overall: (tree 5 (tree 1 '() (tree 3 '() '())) (tree 9 (tree 7 '() '()) (tree 11 '() '())))
+
+(list->tree)
+
+; 2.63 gives us \Theta(n) tree-to-list; 2.64 gives us \Theta(n) list-to-tree
+(define (union-set tree1 tree2)
+  (list->tree (union-set (tree->list-1 tree1) (tree->list-1 tree2))))
+
+(define (intersection-set tree1 tree2)
+  (list->tree (intersection-set-list (tree->list-2 tree1) (tree->list-2 tree2))))
+
+(tree->list-2 (intersection-set (list->tree '(1 2 3 4 5 6 7)) (list->tree '(3 4 5 6 7 8))))
+
+
+
+(list->tree '(1 2 3 4 5 6 7))
+(list->tree '(3 4 5 6 7 8))
+
+(intersection-set '() '())
+(tree->list-2 '())
+(intersection-set-list '())
+
+(define (intersection-set tree1 tree2)
+  )
+
+(tree->list-1 ())
+
+(define (sort lst)
+  (define (unsorted-list-to-tree xs)
+    (if (null? xs)
+        '()
+        (adjoin-tree (car xs) (unsorted-list-to-tree (cdr xs)))))
+  (tree->list-1 (unsorted-list-to-tree lst)))
+
+(sort '(5 2 8 5 12 8 2 8))
+
+(unsorted-list-to-tree '())
+
+(adjoin-set)
+
+(adjoin-set 1 '())
+
+(define (unsorted-list-to-tree lst)
+  (if (null? list)
+      '()))
+
+(null? '())
+
+(define (lookup-binary-tree given-key set)
+  (cond ((null? set) false)
+        ((equal? given-key (entry set)) (entry set))
+        ((< (key (entry set)) given-key) (lookup-binary-tree given-key (left-tree set)))
+        ((> (key (entry set)) given-key) (lookup-binary-tree given-key (right-tree set)))))
+
+(define (lookup-ordered-list given-key set)
+  (cond ((null? set) false)
+        ((equal? given-key (key (car set))) (car set))
+        ((> (key (car set)) given-key) false)
+        (else (lookup-ordered-list given-key (cdr set)))))
+
+(define (make-leaf symbol weight) (list 'leaf symbol weight))
+(define (leaf? object) (eq? (car object) 'leaf))
+(define (symbol-leaf x) (cadr x))
+(define (weight-leaf x) (caddr x))
+(define (make-code-tree left right)
+  (list left right (append (symbols left) (symbols right)) (+ (weight left) (weight right))))
+
+(define (left-branch tree) (car tree))
+(define (right-branch tree) (cadr tree))
+(define (symbols tree)
+  (if (leaf? tree)
+      (list (symbol-leaf tree))
+      (caddr tree)))
+(define (weight tree)
+  (if (leaf? tree)
+      (weight-leaf tree)
+      (cadddr tree)))
+
+(define (decode bits tree)
+  (define (decode-1 bits current-branch)
+    (if (null? bits)
+        '()
+        (let ((next-branch
+               (choose-branch (car bits) current-branch)))
+          (if (leaf? next-branch)
+              (cons (symbol-leaf next-branch)
+                    (decode-1 (cdr bits) tree))
+              (decode-1 (cdr bits) next-branch)))))
+  (decode-1 bits tree))
+(define (choose-branch bit branch)
+  (cond ((= bit 0) (left-branch branch))
+        ((= bit 1) (right-branch branch))
+        (else (error "bad bit: CHOOSE-BRANCH" bit))))
+
+(define (adjoin-set x set)
+  (cond ((null? set) (list x))
+        ((< (weight x) (weight (car set))) (cons x set))
+        (else (cons (car set)
+                    (adjoin-set x (cdr set))))))
+
+(define (make-leaf-set pairs)
+  (if (null? pairs)
+      '()
+      (let ((pair (car pairs)))
+        (adjoin-set (make-leaf (car pair)
+                               (cadr pair))
+                    (make-leaf-set (cdr pairs))))))
+
+(define sample-tree
+  (make-code-tree (make-leaf 'A 4)
+                  (make-code-tree
+                   (make-leaf 'B 2)
+                   (make-code-tree
+                    (make-leaf 'D 1)
+                    (make-leaf 'C 1)))))
+
+(define sample-message '(0 1 1 0 0 1 0 1 0 1 1 1 0))
+
+(decode sample-message sample-tree)
+
+(define (encode message tree)
+  (if (null? message)
+      '()
+      (append (encode-symbol (car message) tree)
+              (encode (cdr message) tree))))
+
+(define (symbol-in-set? sym set)
+  (memq sym set))
+
+  ;(cond ((null? set) false)
+   ;     ((equal? sym (symbol-leaf (car set))) true)
+    ;    (else (symbol-in-set? sym (cdr set)))))
+
+(define (encode-symbol sym tree)
+  (cond ((and (leaf? tree) (eq? (symbol-leaf tree) sym)) '())
+        ((symbol-in-set? sym (symbols (left-branch tree))) (cons 0 (encode-symbol sym (left-branch tree))))
+        ((symbol-in-set? sym (symbols (right-branch tree))) (cons 1 (encode-symbol sym (right-branch tree))))
+        (else (error "symbol not in tree"))
+      ))
+(decode (encode '(a d a b b c a) sample-tree) sample-tree)
+
+(symbol-in-set? 'a '(a b c d))
+
+(define (generate-huffman-tree pairs)
+  (successive-merge (make-leaf-set pairs)))
+
+(define (successive-merge leaf-set)
+  (cond ((null? leaf-set) '())
+        ((null? (cdr leaf-set)) (car leaf-set))
+        (else (successive-merge
+               (adjoin-set
+                (make-code-tree (car leaf-set) (cadr leaf-set))
+                (cddr leaf-set))))))
+
+(encode '(a d a b b c a) (generate-huffman-tree '((c 1) (d 1) (b 2) (a 3))))
+
+(define song-tree (generate-huffman-tree '((WAH 1) (BOOM 1) (A 2) (GET 2) (JOB 2) (SHA 3) (YIP 9) (NA 16))))
+
+(decode (encode '(Get a job sha na na na na na na na get a job sha na na na na na na na wah yip yip yip yip yip yip yip yip sha boom) song-tree) song-tree)
+
+                                        ; /\
+                                        ;16 \
+                                        ;   /\
+                                        ;  8  \
+                                        ;     /\
+                                        ;    4  \
+                                        ;       /\
+                                        ;      2  1
+                                        ;
+                                        ;1 for most freq, n - 1 for least freq
+
